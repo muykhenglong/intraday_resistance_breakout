@@ -77,32 +77,49 @@ for ticker in tickers:
     
 for ticker in tickers:
     for i in range(len(ohlc_dic[ticker])):
+        ### Initialize the daily return to 0 if there's no active signal
         if tickers_signal[ticker] == '':
             tickers_ret[ticker].append(0)
+            ### Check for a 'Buy' signal
+            # A 'Buy' signal is generated if the current high is greater than the rolling maximum close price
+            # and the current volume is more than 1.5 times the previous period's rolling maximum volume
             if (ohlc_dic[ticker]['High'][i] >= ohlc_dic[ticker]['roll_max_cp'][i] and \
                 ohlc_dic[ticker]['Volume'][i] > 1.5*ohlc_dic[ticker]['roll_max_vol'][i-1]):
                 tickers_signal[ticker] = 'Buy'
+            ### Check for a 'Sell' signal
+            # A 'Sell' signal is generated if the current low is less than the rolling minimum close price
+            # and the current volume is more than 1.5 times the previous period's rolling maximum volume
             elif (ohlc_dic[ticker]['Low'][i] <= ohlc_dic[ticker]['roll_min_cp'][i] and \
                 ohlc_dic[ticker]['Volume'][i] > 1.5*ohlc_dic[ticker]['roll_max_vol'][i-1]):
                 tickers_signal[ticker] = 'Sell'
+        ### If the current signal is 'Buy'
         elif tickers_signal[ticker] == 'Buy':
+            ### Close the position if the current low is less than the previous close minus ATR
+            # This condition is considered a stop-loss
             if ohlc_dic[ticker]['Low'][i] < (ohlc_dic[ticker]['Close'][i-1] - ohlc_dic[ticker]['ATR'][i-1]):
                 tickers_signal[ticker] = ''
                 tickers_ret[ticker].append((((ohlc_dic[ticker]['Close'][i-1] - ohlc_dic[ticker]['ATR'][i-1])/ohlc_dic[ticker]['Close'][i-1]) - 1))
+            ### Switch to a 'Sell' signal if sell signal is detected
             elif (ohlc_dic[ticker]['Low'][i] <= ohlc_dic[ticker]['roll_min_cp'][i] and \
                 ohlc_dic[ticker]['Volume'][i] > 1.5*ohlc_dic[ticker]['roll_max_vol'][i-1]):
                 tickers_signal[ticker] = 'Sell'
                 tickers_ret[ticker].append((ohlc_dic[ticker]['Close'][i]/ohlc_dic[ticker]['Close'][i-1]) - 1)
+            ### Otherwise, continue to hold the 'Buy' position
             else:
                 tickers_ret[ticker].append((ohlc_dic[ticker]['Close'][i]/ohlc_dic[ticker]['Close'][i-1]) - 1)
+        ### If the current signal is 'Sell'
         elif tickers_signal[ticker] == 'Sell':
+            ### Close the position if the current high is greater than the previous close plus ATR
+            # This condition is considered a stop-loss
             if ohlc_dic[ticker]['High'][i] > (ohlc_dic[ticker]['Close'][i-1] + ohlc_dic[ticker]['ATR'][i-1]):
                 tickers_signal[ticker] = ''
                 tickers_ret[ticker].append(((ohlc_dic[ticker]['Close'][i-1] + ohlc_dic[ticker]['ATR'][i-1])/ohlc_dic[ticker]['Close'][i-1]) - 1)
+            ### Switch to a 'Buy' signal if buy signal is detected
             elif (ohlc_dic[ticker]['High'][i] >= ohlc_dic[ticker]['roll_max_cp'][i] and \
                 ohlc_dic[ticker]['Volume'][i] > 1.5*ohlc_dic[ticker]['roll_max_vol'][i-1]):
                 tickers_signal[ticker] = 'Buy'
                 tickers_ret[ticker].append((ohlc_dic[ticker]['Close'][i]/ohlc_dic[ticker]['Close'][i-1]) - 1)
+            ### Otherwise, continue to hold the 'Sell' position
             else:
                 tickers_ret[ticker].append((ohlc_dic[ticker]['Close'][i]/ohlc_dic[ticker]['Close'][i-1]) - 1)
     ohlc_dic[ticker]['ret'] = np.array(tickers_ret[ticker])
